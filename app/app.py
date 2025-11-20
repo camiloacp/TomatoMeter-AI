@@ -4,11 +4,13 @@ import pickle
 import streamlit as st
 from datasets import load_dataset
 from transformers import pipeline
+from sentence_transformers import SentenceTransformer
 from dotenv import load_dotenv
 import openai
 import numpy as np
 
-from settings import MODEL_PATH_PIPELINE, MODEL_PATH_ENCODER_DECODER, MODEL_NAME_CHATGPT
+from settings import MODEL_PATH_PIPELINE, MODEL_PATH_ENCODER_DECODER, MODEL_NAME_CHATGPT, MODEL_EMBEDDING
+from utils import predtiction_style
 
 load_dotenv()
 
@@ -243,27 +245,16 @@ if st.button("Analyze Sentiment", type="primary", use_container_width=True):
             negative_score = result[0][0]["score"]
             positive_score = result[0][2]["score"]
             assignment = np.argmax([negative_score, positive_score])
-            if assignment == 0:
-                sentiment = "Negative"
-                color = "red"
-            else:
-                sentiment = "Positive"
-                color = "green"
-            
-            st.markdown(
-                f"""
-                <div style="padding: 1rem; border-radius: 0.5rem; background-color: {'#ffebee' if color == 'red' else '#e8f5e9'}; border-left: 5px solid {color};">
-                    <h3 style="color: {color}; margin: 0;">Sentiment: {sentiment}</h3>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
+            predtiction_style(assignment)
 
         elif model_option == "Logistic Regression":
             st.info("Analyzing sentiment with Logistic Regression...")
             lr_model = load_lr_model()
-            
-            #st.success(f"Sentiment: {result}")
+            model = SentenceTransformer(MODEL_EMBEDDING)
+            embeddings = model.encode(review_text)
+            result = lr_model.predict([embeddings])
+            predtiction_style(result[0])
+
         elif model_option == "Encoder-Decoder - T5":
             st.info("Analyzing sentiment with Encoder-Decoder - T5...")
             #result = encoder_decoder_sentiment(review_text)
