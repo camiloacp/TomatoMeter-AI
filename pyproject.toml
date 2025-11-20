@@ -1,0 +1,14 @@
+[project]
+name = "tomatometer-ai"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "datasets>=4.4.1",
+    "load-dotenv>=0.1.0",
+    "openai>=2.8.1",
+    "scikit-learn>=1.7.2",
+    "sentence-transformers>=5.1.2",
+    "transformers>=4.57.1",
+]
