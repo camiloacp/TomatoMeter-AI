@@ -2,6 +2,8 @@
 
 TomatoMeter AI es una aplicación web interactiva construida con Streamlit que permite analizar el sentimiento de reseñas de películas. Descubre si una crítica es positiva o negativa utilizando una selección de modelos de inteligencia artificial.
 
+https://github.com/user-attachments/assets/9e57f605-3aa2-463d-9b97-160b62ff2690
+
 ## ✨ Características Principales
 
 - **Análisis de Sentimiento:** Clasifica automáticamente las reseñas de películas como positivas o negativas.
