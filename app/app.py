@@ -102,11 +102,11 @@ def load_encoder_decoder_model():
 
 def analyze_with_t5(review_text, model):
     """Analiza sentimiento usando FLAN-T5"""
-    prompt = f"""Classify the sentiment of this movie review as either 'positive' or 'negative'.
-
-Review: {review_text}
-
-Sentiment:"""
+    prompt = f"""
+    Classify the sentiment of this movie review as either 'positive' or 'negative'.
+    Review: {review_text}
+    
+    Sentiment:"""
     
     result = model(prompt, max_length=10, num_return_sequences=1, do_sample=False)
     sentiment = result[0]['generated_text'].strip().lower()
