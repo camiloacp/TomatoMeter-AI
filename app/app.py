@@ -1,16 +1,13 @@
-import os
-import pickle
 import pandas as pd
-from io import StringIO
 
 import streamlit as st
-from datasets import load_dataset
-from transformers import pipeline
 from sentence_transformers import SentenceTransformer
 from dotenv import load_dotenv
-import openai
 
-from settings import MODEL_PATH_PIPELINE, MODEL_PATH_ENCODER_DECODER, MODEL_NAME_CHATGPT, MODEL_EMBEDDING
+from utils import laod_pipeline, load_lr_model, load_encoder_decoder_model, analyze_with_t5, chatgpt_generation
+from predicitions_batch import predict_batch_pipeline, predict_batch_lr, predict_batch_t5, predict_batch_chatgpt
+
+from settings import MODEL_NAME_CHATGPT, MODEL_EMBEDDING
 
 load_dotenv()
 
@@ -68,148 +65,6 @@ st.markdown("""
         border-bottom: 2px solid #f0f0f0;
     }
 """, unsafe_allow_html=True)
-
-# ============================================
-# CACHE FUNCTIONS
-# ============================================
-@st.cache_resource
-def load_data():
-    return load_dataset("rotten_tomatoes")
-
-@st.cache_resource
-def laod_pipeline():
-    return pipeline(
-        model=MODEL_PATH_PIPELINE,
-        tokenizer=MODEL_PATH_PIPELINE,
-        return_all_scores=True,
-        device="mps"
-    )
-
-@st.cache_resource
-def load_lr_model():
-    with open("./model/model_lr.pkl", "rb") as f:
-        return pickle.load(f)
-
-@st.cache_resource
-def load_encoder_decoder_model():
-    """Carga FLAN-T5 para generación de texto"""
-    return pipeline(
-        task="text2text-generation",
-        model=MODEL_PATH_ENCODER_DECODER,
-        tokenizer=MODEL_PATH_ENCODER_DECODER,
-        device="mps"
-    )
-
-def analyze_with_t5(review_text, model):
-    """Analiza sentimiento usando FLAN-T5"""
-    prompt = f"""
-    Classify the sentiment of this movie review as either 'positive' or 'negative'.
-    Review: {review_text}
-    
-    Sentiment:"""
-    
-    result = model(prompt, max_length=10, num_return_sequences=1, do_sample=False)
-    sentiment = result[0]['generated_text'].strip().lower()
-    
-    if 'positive' in sentiment:
-        return {'label': 'POSITIVE', 'score': 0.95}
-    elif 'negative' in sentiment:
-        return {'label': 'NEGATIVE', 'score': 0.95}
-    else:
-        return {'label': 'NEUTRAL', 'score': 0.5}
-
-def chatgpt_generation(prompt, document, model=MODEL_NAME_CHATGPT):
-    client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-    messages=[
-        {
-            "role": "system",
-            "content": "You are a helpful assistant specialized in sentiment analysis."
-        },
-        {
-            "role": "user",
-            "content": prompt.replace("[DOCUMENT]", document)
-        }
-    ]
-    chat_completion = client.chat.completions.create(
-        messages=messages,
-        model=model
-    )
-    return chat_completion.choices[0].message.content
-
-# ============================================
-# BATCH PREDICTION FUNCTIONS
-# ============================================
-def predict_batch_pipeline(df, text_column, model):
-    """Predicciones en batch con Pipeline Model"""
-    predictions = []
-    progress_bar = st.progress(0)
-    
-    for idx, text in enumerate(df[text_column]):
-        result = model(text)[0]
-        sentiment = max(result, key=lambda x: x['score'])
-        predictions.append({
-            'Sentiment': sentiment['label'].title(),
-            'Confidence': sentiment['score']
-        })
-        progress_bar.progress((idx + 1) / len(df))
-    
-    return pd.DataFrame(predictions)
-
-def predict_batch_t5(df, text_column, model):
-    """Predicciones en batch con FLAN-T5"""
-    predictions = []
-    progress_bar = st.progress(0)
-    
-    for idx, text in enumerate(df[text_column]):
-        result = analyze_with_t5(text, model)
-        predictions.append({
-            'Sentiment': result['label'].title(),
-            'Confidence': result['score']
-        })
-        progress_bar.progress((idx + 1) / len(df))
-    
-    return pd.DataFrame(predictions)
-
-def predict_batch_lr(df, text_column, lr_model, model):
-    """Predicciones en batch con Logistic Regression"""
-    # Asume que tu modelo LR tiene un método predict y predict_proba
-    predictions = lr_model.predict(model.encode(df[text_column]))
-    probabilities = lr_model.predict_proba(model.encode(df[text_column]))
-    
-    results = pd.DataFrame({
-        'Sentiment': ['Positive' if p == 1 else 'Negative' for p in predictions],
-        'Confidence': probabilities.max(axis=1)
-    })
-    
-    return results
-
-def predict_batch_chatgpt(df, text_column, model_name):
-    """Predicciones en batch con ChatGPT (cuidado con rate limits)"""
-    predictions = []
-    progress_bar = st.progress(0)
-    
-    prompt = """Analyze the sentiment of this movie review. 
-    Respond with only 'POSITIVE' or 'NEGATIVE'.
-    
-    Review: [DOCUMENT]"""
-    
-    for idx, text in enumerate(df[text_column]):
-        try:
-            result = chatgpt_generation(prompt, text, model_name)
-            sentiment = 'POSITIVE'.title() if 'positive' in result.lower() else 'NEGATIVE'.title()
-            predictions.append({
-                'Sentiment': sentiment,
-                'Confidence': 0.9  # ChatGPT no da scores directamente
-            })
-        except Exception as e:
-            predictions.append({
-                'Sentiment': 'ERROR',
-                'Confidence': 0.0
-            })
-        
-        progress_bar.progress((idx + 1) / len(df))
-    
-    return pd.DataFrame(predictions)
 
 # ============================================
 # UI - HEADER
